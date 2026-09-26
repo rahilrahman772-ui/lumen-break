@@ -13,8 +13,29 @@ _DEFAULTS = {
 
 class Save:
     def __init__(self):
-        self.path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                                  C.SAVE_FILE)
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            save_dir = os.path.join(appdata, "LumenBreak")
+            try:
+                os.makedirs(save_dir, exist_ok=True)
+            except OSError:
+                save_dir = None
+
+            if save_dir:
+                self.path = os.path.join(save_dir, C.SAVE_FILE)
+            else:
+                self.path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "..",
+                    C.SAVE_FILE,
+                )
+        else:
+            self.path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                C.SAVE_FILE,
+            )
+
         self.data = dict(_DEFAULTS)
         self.load()
 
