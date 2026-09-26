@@ -6,6 +6,7 @@ import pygame
 from . import constants as C
 from .ui import FadeTransition
 from .state import Save
+from .audio import Audio
 from . import screens
 
 
@@ -31,9 +32,11 @@ class Shaker:
 
 class App:
     def __init__(self):
+        pygame.mixer.pre_init(44100, -16, 2, 512)
         pygame.init()
         pygame.display.set_caption(C.TITLE)
         self.save = Save()
+        self.audio = Audio(self.save)
         flags = pygame.FULLSCREEN if self.save.get("fullscreen") else 0
         self.screen = pygame.display.set_mode((C.WIDTH, C.HEIGHT), flags)
         self.clock = pygame.time.Clock()
@@ -45,6 +48,8 @@ class App:
 
     # --- navigation ------------------------------------------------------
     def _switch(self, factory):
+        self.audio.play("click")
+
         def midpoint():
             self.current = factory()
         self.transition.start(on_midpoint=midpoint)
@@ -59,14 +64,20 @@ class App:
         self._switch(lambda: screens.PlayScreen(self))
 
     def go_gameover(self, score):
+        self.audio.play("gameover")
         self._switch(lambda: screens.GameOverScreen(self, score))
 
     def set_fullscreen(self, value):
         self.save.set("fullscreen", value)
+        self.audio.play("click")
         flags = pygame.FULLSCREEN if value else 0
         self.screen = pygame.display.set_mode((C.WIDTH, C.HEIGHT), flags)
 
+    def set_volume(self, value):
+        self.audio.set_volume(value)
+
     def quit(self):
+        self.audio.play("click")
         self.running = False
 
     # --- loop --------------------------------------------------------------
@@ -87,5 +98,6 @@ class App:
             self.transition.draw(self.screen)
             pygame.display.flip()
 
+        self.audio.shutdown()
         pygame.quit()
         sys.exit(0)
