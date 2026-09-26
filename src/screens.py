@@ -14,7 +14,7 @@ def draw_background(surface, t):
         color = lerp_color(C.BG_TOP, C.BG_BOTTOM, f)
         pygame.draw.rect(surface, color, (0, y, C.WIDTH, 4))
 
-    random.seed(7)  # stable field, independent of gameplay RNG
+    random.seed(7)
     for i in range(46):
         x = (i * 197) % C.WIDTH
         base_y = (i * 131) % C.HEIGHT
@@ -70,19 +70,23 @@ class SettingsScreen:
         self.app = app
         self.t = 0.0
         cx = C.WIDTH // 2
-        self.slider = Slider((cx, 300), 320, "EFFECTS INTENSITY",
+        self.volume = Slider((cx, 260), 320, "MASTER VOLUME",
+                             value=app.save.get("volume") or 0.7,
+                             on_change=app.set_volume, accent=C.AMBER)
+        self.slider = Slider((cx, 345), 320, "EFFECTS INTENSITY",
                               value=app.save.get("effects_intensity") or 0.8,
                               on_change=self._set_effects, accent=C.TEAL)
-        self.toggle = Toggle((cx, 400), "FULLSCREEN",
+        self.toggle = Toggle((cx, 435), "FULLSCREEN",
                               value=app.save.get("fullscreen"),
                               on_change=app.set_fullscreen, accent=C.AMBER)
-        self.back = Button((cx, 500), (200, 48), "BACK", on_click=app.go_menu,
+        self.back = Button((cx, 540), (200, 48), "BACK", on_click=app.go_menu,
                             accent=C.TEAL, style="ghost")
 
     def _set_effects(self, v):
         self.app.save.set("effects_intensity", v)
 
     def handle_event(self, event):
+        self.volume.handle_event(event)
         self.slider.handle_event(event)
         self.toggle.handle_event(event)
         self.back.handle_event(event)
@@ -90,6 +94,7 @@ class SettingsScreen:
     def update(self, dt):
         self.t += dt
         mouse = pygame.mouse.get_pos()
+        self.volume.update(dt, mouse)
         self.slider.update(dt, mouse)
         self.toggle.update(dt, mouse)
         self.back.update(dt, mouse)
@@ -97,7 +102,8 @@ class SettingsScreen:
     def draw(self, surface):
         draw_background(surface, self.t)
         draw_text(surface, "SETTINGS", C.FONT_HEADING, C.TEXT_PRIMARY,
-                  center=(C.WIDTH // 2, 160), bold=True)
+                  center=(C.WIDTH // 2, 125), bold=True)
+        self.volume.draw(surface)
         self.slider.draw(surface)
         self.toggle.draw(surface)
         self.back.draw(surface)
@@ -161,6 +167,7 @@ class PlayScreen:
         self.bricks = build_level(self.level_index)
         self._launch_new_ball()
         self.level_banner_t = 1.4
+        self.app.audio.play("level")
 
     def _launch_new_ball(self):
         self.balls = [self._make_attached_ball()]
@@ -182,14 +189,17 @@ class PlayScreen:
     def _pause(self):
         self.paused = True
         self.pause_overlay = PauseOverlay(self.app, self._resume, self._restart)
+        self.app.audio.play("click")
 
     def _resume(self):
         self.paused = False
         self.pause_overlay = None
+        self.app.audio.play("click")
 
     def _restart(self):
         self.paused = False
         self.pause_overlay = None
+        self.app.audio.play("click")
         self.reset()
 
     def handle_event(self, event):
@@ -209,6 +219,7 @@ class PlayScreen:
         for b in self.balls:
             b.vx = random.uniform(-140, 140)
             b.vy = -380
+        self.app.audio.play("launch")
 
     def update(self, dt):
         if self.game_over:
@@ -264,6 +275,7 @@ class PlayScreen:
             if paddle_rect.colliderect(brect) and ball.vy > 0:
                 ball.bounce_off_paddle(self.paddle)
                 self.app.shaker.add(0.08)
+                self.app.audio.play("paddle")
 
             for brick in self.bricks:
                 if not brick.alive:
@@ -273,7 +285,6 @@ class PlayScreen:
                     break
 
     def _resolve_brick_hit(self, ball, brick):
-        # Reflect based on which side was hit (approximate via overlap depth).
         overlap = ball.rect().clip(brick.rect)
         if overlap.width < overlap.height:
             ball.vx *= -1
@@ -289,10 +300,12 @@ class PlayScreen:
         if not brick.alive:
             self._spawn_particles(brick.rect.centerx, brick.rect.centery, brick.color)
             self.app.shaker.add(0.12)
+            self.app.audio.play("break")
             if random.random() < 0.16:
                 self.powerups.append(PowerUp(brick.rect.centerx, brick.rect.centery))
         else:
             self.app.shaker.add(0.04)
+            self.app.audio.play("brick")
 
     def _handle_powerup_pickup(self):
         paddle_rect = self.paddle.rect()
@@ -301,6 +314,7 @@ class PlayScreen:
             if paddle_rect.colliderect(pu.rect()):
                 self._apply_powerup(pu.kind)
                 self._spawn_particles(pu.x, pu.y, PowerUp.COLORS[pu.kind], count=10)
+                self.app.audio.play("powerup")
             else:
                 remaining.append(pu)
         self.powerups = remaining
@@ -321,6 +335,7 @@ class PlayScreen:
     def _lose_life(self):
         self.lives -= 1
         self.combo = 0
+        self.app.audio.play("life")
         if self.lives <= 0:
             self.game_over = True
             hs = self.app.save.get("high_score")
