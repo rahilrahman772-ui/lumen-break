@@ -40,7 +40,7 @@ app.current.slider.handle_event(
 app.current.slider.handle_event(
     pygame.event.Event(pygame.MOUSEBUTTONUP, pos=app.current.slider.rect.center, button=1))
 step(3)
-click((C.WIDTH // 2, 500))  # back
+click((C.WIDTH // 2, 540))  # back
 step(20)
 assert isinstance(app.current, screens.MenuScreen)
 print("OK settings interactions + back")
