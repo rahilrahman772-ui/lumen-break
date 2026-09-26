@@ -6,6 +6,7 @@ from . import constants as C
 _DEFAULTS = {
     "high_score": 0,
     "volume": 0.7,
+    "effects_intensity": 0.8,
     "fullscreen": False,
 }
 
